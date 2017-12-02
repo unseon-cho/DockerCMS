@@ -17,7 +17,8 @@ GET /containers?state=running      List running containers (only)
 GET /containers/<id>                Inspect a specific container
 GET /containers/<id>/logs           Dump specific container logs
 GET /images                         List all images
-
+GET /services                       List all services
+GET /nodes                          List all nodes in the swarm
 
 POST /images                        Create a new image
 POST /containers                    Create a new container
@@ -31,6 +32,26 @@ DELETE /images/<id>                 Delete a specific image
 DELETE /images                      Delete all images
 
 """
+
+
+@app.route('/nodes', methods=['GET'])
+def nodes_index():
+    """
+    List all nodes
+    """
+    nodes = docker('node', 'ls')
+    resp = json.dumps(docker_nodes_to_array(nodes))
+    return Response(response=resp, mimetype="application/json")
+
+@app.route('/services', methods = ['GET'])
+def services_index():
+    """
+    List all services
+    """
+    services = docker('service', 'ls')
+    resp = json.dumps(docker_ps_to_array(services))
+    return Response(response=resp, mimetype="application/json")
+
 
 @app.route('/containers', methods=['GET'])
 def containers_index():
@@ -57,7 +78,6 @@ def images_index():
     """
     List all images 
     
-    Complete the code below generating a valid response. 
     """
     
     images = docker('images')
@@ -111,7 +131,7 @@ def containers_remove_all():
     Force remove all containers - dangrous!
 
     """
-
+    resp =""
     for c in docker('ps','-a','-q').split('\n'):
         if c:
             docker('stop',c)
@@ -126,6 +146,7 @@ def images_remove_all():
     Force remove all images - dangrous!
 
     """
+    resp = ""
     images = docker('images','-q').split('\n')
 
     for i in images:
@@ -186,6 +207,8 @@ def containers_update(id):
         state = body['state']
         if state == 'running':
             docker('restart', id)
+        else :
+            docker('stop',id)
     except:
         pass
 
@@ -257,6 +280,24 @@ def docker_images_to_array(output):
         each['id'] = c[2]
         each['tag'] = c[1]
         each['name'] = c[0]
+        all.append(each)
+    return all
+
+def docker_nodes_to_array(output):
+    all = []
+    for c in [line.split() for line in output.splitlines()[1:]]:
+        each = {}
+        each['id']=c[0]
+        try:
+            each['magager_status'] = c[5]
+            each['hostname'] = c[2]
+            each['status'] = c[3]
+            each['availability'] = c[4]
+        except:
+            each['hostname'] = c[1]
+            each['status'] = c[2]
+            each['availability'] = c[3]
+
         all.append(each)
     return all
 
